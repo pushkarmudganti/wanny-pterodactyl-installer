@@ -1,7 +1,7 @@
               Provider proper pterodactyl panel installation without any error with any vps
 
 
-THANKS TO @PYCORE CLOUD 
+THANKS TO @wanny_dragon 
 INSTALLTION OF PTERODACTYL PANEL EASYLY 
 
 -----REQUIREMENT OF SPECS-------
