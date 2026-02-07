@@ -2,32 +2,6 @@
 
 set -e
 
-#############################################################################
-#                                                                           #
-# Project 'pterodactyl-installer'                                           #
-#                                                                           #
-# Copyright (C) 2018 - 2020, Vilhelm Prytz, <vilhelm@prytznet.se>, et al.   #
-#                                                                           #
-#   This program is free software: you can redistribute it and/or modify    #
-#   it under the terms of the GNU General Public License as published by    #
-#   the Free Software Foundation, either version 3 of the License, or       #
-#   (at your option) any later version.                                     #
-#                                                                           #
-#   This program is distributed in the hope that it will be useful,         #
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of          #
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           #
-#   GNU General Public License for more details.                            #
-#                                                                           #
-#   You should have received a copy of the GNU General Public License       #
-#   along with this program.  If not, see <https://www.gnu.org/licenses/>.  #
-#                                                                           #
-# https://github.com/vilhelmprytz/pterodactyl-installer/blob/master/LICENSE #
-#                                                                           #
-# This script is not associated with the official Pterodactyl Project.      #
-# https://github.com/vilhelmprytz/pterodactyl-installer                     #
-#                                                                           #
-#############################################################################
-
 # exit with error status code if user is not root
 if [[ $EUID -ne 0 ]]; then
   echo "* This script must be executed with root privileges (sudo)." 1>&2
@@ -87,7 +61,7 @@ echo -e "║                                                          ║"
 echo -e "║   \e[1;33m1️⃣   Install Pterodactyl Panel\e[1;36m                    ║"
 echo -e "║   \e[1;33m2️⃣   Install Wings Daemon\e[1;36m                         ║"
 echo -e "║   \e[1;33m3️⃣   Install Both (Panel + Wings)\e[1;36m                 ║"
-echo -e "║   \e[1;33m4️⃣   🏗️   Install Blueprint\e[1;36m                         ║"
+echo -e "║   \e[1;33m4️⃣ 🏗️Install Blueprint\e[1;36m                         ║"
 echo -e "║                                                          ║"
 echo -e "║   \e[1;31m0️⃣   Exit\e[1;36m                                          ║"
 echo -e "║                                                          ║"
