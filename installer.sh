@@ -59,129 +59,9 @@ check_requirements() {
     echo ""
 }
 
-# Function to fix nginx and ptero worker
-fix_nginx_ptero() {
-    echo -e "${YELLOW}Fixing Nginx and Ptero Worker services...${NC}"
-    
-    # Fix Nginx configuration
-    if systemctl is-active --quiet nginx; then
-        echo -e "${GREEN}✓ Nginx is already running${NC}"
-    else
-        echo -e "${YELLOW}Starting Nginx...${NC}"
-        systemctl start nginx
-        systemctl enable nginx
-        sleep 5
-        
-        if systemctl is-active --quiet nginx; then
-            echo -e "${GREEN}✓ Nginx started successfully${NC}"
-        else
-            echo -e "${RED}⚠ Nginx failed to start. Checking configuration...${NC}"
-            nginx -t
-            echo -e "${YELLOW}Fixing Nginx configuration...${NC}"
-            
-            # Check and fix common Nginx issues
-            if [ -f /etc/nginx/sites-available/pterodactyl.conf ]; then
-                # Ensure proper permissions
-                chown -R www-data:www-data /var/www/pterodactyl
-                chmod -R 755 /var/www/pterodactyl
-                
-                # Restart Nginx
-                systemctl restart nginx
-                systemctl enable nginx
-                
-                if systemctl is-active --quiet nginx; then
-                    echo -e "${GREEN}✓ Nginx fixed and started${NC}"
-                else
-                    echo -e "${RED}❌ Nginx still not working. Check logs: journalctl -u nginx${NC}"
-                fi
-            fi
-        fi
-    fi
-    
-    # Fix Ptero Queue Worker
-    if systemctl is-active --quiet pteroq; then
-        echo -e "${GREEN}✓ Ptero Queue Worker is already running${NC}"
-    else
-        echo -e "${YELLOW}Starting Ptero Queue Worker...${NC}"
-        
-        # Create pteroq systemd service if it doesn't exist
-        if [ ! -f /etc/systemd/system/pteroq.service ]; then
-            echo -e "${YELLOW}Creating pteroq service...${NC}"
-            cat > /etc/systemd/system/pteroq.service << 'EOF'
-[Unit]
-Description=Pterodactyl Queue Worker
-After=redis-server.service
-
-[Service]
-User=www-data
-Group=www-data
-Restart=always
-ExecStart=/usr/bin/php /var/www/pterodactyl/artisan queue:work --queue=high,standard,low --sleep=3 --tries=3
-StartLimitInterval=180
-StartLimitBurst=30
-
-[Install]
-WantedBy=multi-user.target
-EOF
-            systemctl daemon-reload
-        fi
-        
-        # Set proper permissions
-        chown -R www-data:www-data /var/www/pterodactyl/storage
-        chown -R www-data:www-data /var/www/pterodactyl/bootstrap/cache
-        
-        # Start pteroq
-        systemctl start pteroq
-        systemctl enable pteroq
-        sleep 5
-        
-        if systemctl is-active --quiet pteroq; then
-            echo -e "${GREEN}✓ Ptero Queue Worker started successfully${NC}"
-        else
-            echo -e "${RED}⚠ Ptero Queue Worker failed to start${NC}"
-            echo -e "${YELLOW}Checking PHP requirements...${NC}"
-            
-            # Check PHP and install missing extensions
-            apt-get install -y php-common php-cli php-fpm php-mysql php-mbstring php-xml php-curl php-zip php-gd php-bcmath
-            
-            # Restart services
-            systemctl restart php8.1-fpm || systemctl restart php8.0-fpm || systemctl restart php7.4-fpm
-            systemctl restart pteroq
-            
-            if systemctl is-active --quiet pteroq; then
-                echo -e "${GREEN}✓ Ptero Queue Worker fixed and started${NC}"
-            else
-                echo -e "${RED}❌ Ptero Queue Worker still not working. Check logs: journalctl -u pteroq${NC}"
-            fi
-        fi
-    fi
-    
-    # Check and fix PHP-FPM
-    if systemctl is-active --quiet php8.1-fpm || systemctl is-active --quiet php8.0-fpm || systemctl is-active --quiet php7.4-fpm; then
-        echo -e "${GREEN}✓ PHP-FPM is running${NC}"
-    else
-        echo -e "${YELLOW}Starting PHP-FPM...${NC}"
-        systemctl restart php8.1-fpm || systemctl restart php8.0-fpm || systemctl restart php7.4-fpm
-        sleep 5
-    fi
-    
-    # Check Redis (required for queue)
-    if systemctl is-active --quiet redis-server; then
-        echo -e "${GREEN}✓ Redis is running${NC}"
-    else
-        echo -e "${YELLOW}Starting Redis...${NC}"
-        apt-get install -y redis-server
-        systemctl start redis-server
-        systemctl enable redis-server
-        sleep 5
-    fi
-    
-    echo ""
-}
-
-# Function to install Panel automatically with special handling for telemetry and certificate
-install_panel_auto() {
-    echo -e "${YELLOW}Starting Automatic Pterodactyl Panel Installation...${NC}"
+# Function to manually install Panel with visible certificate process
+install_panel_manual() {
+    echo -e "${YELLOW}Starting Manual Pterodactyl Panel Installation...${NC}"
     echo -e "${YELLOW}INSTALLATION OF PTERODACTYL PANEL EASILY - MADE BY WANNYDRAGON${NC}"
     echo ""
     
@@ -200,179 +80,262 @@ install_panel_auto() {
     echo -e "${BLUE}Password:${NC} $PASSWORD"
     echo ""
     
-    # Check and install required packages
-    echo -e "${YELLOW}Installing required packages...${NC}"
+    echo -e "${YELLOW}Step 1: Installing required packages...${NC}"
     apt-get update
-    apt-get install -y expect curl git mariadb-server nginx certbot python3-certbot-nginx php-fpm php-common php-cli php-gd php-mysql php-mbstring php-bcmath php-xml php-fpm php-curl php-zip
+    apt-get install -y curl git mariadb-server nginx certbot python3-certbot-nginx php-fpm php-common php-cli php-gd php-mysql php-mbstring php-bcmath php-xml php-curl php-zip
+    
+    echo -e "${YELLOW}Step 2: Starting MariaDB and Nginx...${NC}"
+    systemctl start mariadb
+    systemctl enable mariadb
+    systemctl start nginx
+    systemctl enable nginx
+    
+    echo -e "${YELLOW}Step 3: Running Pterodactyl installer...${NC}"
+    echo -e "${GREEN}Follow these steps manually:${NC}"
+    echo ""
+    echo -e "${BLUE}1. Run installer:${NC} bash <(curl -s https://pterodactyl-installer.se)"
+    echo -e "${BLUE}2. Select option:${NC} 0 (Install Panel)"
+    echo -e "${BLUE}3. Database name:${NC} Press Enter (default: panel)"
+    echo -e "${BLUE}4. Database user:${NC} Press Enter (default: pterodactyl)"
+    echo -e "${BLUE}5. Database password:${NC} Press Enter (random)"
+    echo -e "${BLUE}6. Timezone:${NC} Press Enter (default)"
+    echo -e "${BLUE}7. Let's Encrypt email:${NC} admin@gmail.com"
+    echo -e "${BLUE}8. Admin email:${NC} admin@gmail.com"
+    echo -e "${BLUE}9. Username:${NC} admin"
+    echo -e "${BLUE}10. First name:${NC} admin"
+    echo -e "${BLUE}11. Last name:${NC} user"
+    echo -e "${BLUE}12. Password:${NC} admin123"
+    echo -e "${BLUE}13. FQDN:${NC} bad-cat-91.telebit.io"
+    echo -e "${BLUE}14. UFW firewall:${NC} n"
+    echo -e "${BLUE}15. Let's Encrypt:${NC} y"
+    echo -e "${BLUE}16. HTTPS request:${NC} y"
+    echo -e "${BLUE}17. Cloudflare warning:${NC} y"
+    echo -e "${BLUE}18. Continue installation:${NC} y"
+    echo ""
+    echo -e "${RED}IMPORTANT: When you see certificate generation, WATCH THE PROCESS!${NC}"
+    echo -e "${RED}You will see Let's Encrypt attempting to get SSL certificate.${NC}"
+    echo ""
+    
+    echo -e "${YELLOW}Press Enter to start installer (you will see certificate process)...${NC}"
+    read -p ""
+    
+    # Run installer manually so user can see certificate process
+    bash <(curl -s https://pterodactyl-installer.se)
+    
+    # After installer finishes or user exits
+    echo ""
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}                 INSTALLATION STATUS               ${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    # Check if installation completed
+    if [ -d "/var/www/pterodactyl" ]; then
+        echo -e "${GREEN}✓ Panel files installed at /var/www/pterodactyl${NC}"
+        
+        # Fix nginx and ptero worker
+        fix_nginx_ptero
+        
+        # Show login details
+        echo -e "\n${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${RED}              📋 INSTALLATION COMPLETED 📋${NC}"
+        echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo ""
+        echo -e "${GREEN}✅ Panel successfully installed!${NC}"
+        echo ""
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}                 🔐 LOGIN DETAILS 🔐${NC}"
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo ""
+        echo -e "${BLUE}🌐 Panel URL:${NC} ${WHITE}https://bad-cat-91.telebit.io${NC}"
+        echo ""
+        echo -e "${BLUE}📧 Email:${NC} ${WHITE}admin@gmail.com${NC}"
+        echo -e "${BLUE}👤 Username:${NC} ${WHITE}admin${NC}"
+        echo -e "${BLUE}🔑 Password:${NC} ${WHITE}admin123${NC}"
+        echo -e "${BLUE}👤 Full Name:${NC} ${WHITE}admin user${NC}"
+        echo ""
+        
+        # Check SSL certificate
+        echo -e "${YELLOW}Checking SSL certificate...${NC}"
+        if [ -f "/etc/letsencrypt/live/bad-cat-91.telebit.io/fullchain.pem" ]; then
+            echo -e "${GREEN}✓ SSL certificate found!${NC}"
+            echo -e "${BLUE}Certificate path:${NC} /etc/letsencrypt/live/bad-cat-91.telebit.io/"
+        else
+            echo -e "${RED}⚠ SSL certificate not found!${NC}"
+            echo -e "${YELLOW}To manually create SSL certificate:${NC}"
+            echo -e "certbot --nginx -d bad-cat-91.telebit.io --email admin@gmail.com --agree-tos --no-eff-email"
+        fi
+    else
+        echo -e "${RED}⚠ Panel installation may not have completed${NC}"
+        echo -e "${YELLOW}Check if you need to run the installer again${NC}"
+    fi
+    
+    echo ""
+    echo -e "${GREEN}Press Enter to return to main menu...${NC}"
+    read -p ""
+}
+
+# Function to install Panel automatically (alternative)
+install_panel_auto() {
+    echo -e "${YELLOW}Starting Automatic Pterodactyl Panel Installation...${NC}"
+    echo -e "${YELLOW}INSTALLATION OF PTERODACTYL PANEL EASILY - MADE BY WANNYDRAGON${NC}"
+    echo ""
+    
+    echo -e "${RED}This will use automated script. For visible certificate process, use Option 3${NC}"
+    echo -e "${YELLOW}Continue with automatic install? (y/n):${NC}"
+    read -p " " auto_choice
+    
+    if [[ $auto_choice != "y" && $auto_choice != "Y" ]]; then
+        echo -e "${YELLOW}Returning to menu...${NC}"
+        return
+    fi
+    
+    # Fixed settings as requested
+    FQDN="bad-cat-91.telebit.io"
+    EMAIL="admin@gmail.com"
+    USERNAME="admin"
+    PASSWORD="admin123"
+    FIRST_NAME="admin"
+    LAST_NAME="user"
+    
+    echo -e "${GREEN}Using fixed settings:${NC}"
+    echo -e "${BLUE}FQDN:${NC} $FQDN"
+    echo -e "${BLUE}Email:${NC} $EMAIL"
+    echo -e "${BLUE}Username:${NC} $USERNAME"
+    echo -e "${BLUE}Password:${NC} $PASSWORD"
+    echo ""
     
     # Check if expect is installed
     if ! command -v expect &> /dev/null; then
         echo -e "${YELLOW}Installing expect package...${NC}"
-        apt-get install expect -y
+        apt-get update && apt-get install expect -y
     fi
     
-    echo -e "${YELLOW}Starting installation...${NC}"
-    
-    # Create expect script for automatic installation with special handling
+    # Create simplified expect script
     cat > /tmp/install_panel.exp << 'EOF'
 #!/usr/bin/expect -f
 set timeout -1
 
 spawn bash <(curl -s https://pterodactyl-installer.se)
-sleep 5
 
-# Wait for initial prompt
+# Step-by-step with visible output
 expect "*Input 0-6:*"
 send "0\r"
-sleep 5
 
-# Wait for database name prompt and press enter for default
 expect "*Database name (panel):*"
 send "\r"
-sleep 5
 
-# Wait for database username prompt and press enter for default
 expect "*Database username (pterodactyl):*"
 send "\r"
-sleep 5
 
-# Wait for password prompt and press enter for random password
 expect "*Password (press enter to use randomly generated password):*"
 send "\r"
-sleep 5
 
-# Wait for timezone prompt and press enter for default
 expect "*Select timezone*"
 send "\r"
-sleep 5
 
-# Wait for Let's Encrypt email prompt
 expect "*Provide the email address that will be used to configure Let's Encrypt and Pterodactyl:*"
 send "admin@gmail.com\r"
-sleep 5
 
-# Wait for admin email prompt
 expect "*Email address for the initial admin account:*"
 send "admin@gmail.com\r"
-sleep 5
 
-# Wait for username prompt
 expect "*Username for the initial admin account:*"
 send "admin\r"
-sleep 5
 
-# Wait for first name prompt
 expect "*First name for the initial admin account:*"
 send "admin\r"
-sleep 5
 
-# Wait for last name prompt
 expect "*Last name for the initial admin account:*"
 send "user\r"
-sleep 5
 
-# Wait for password prompt
 expect "*Password for the initial admin account:*"
 send "admin123\r"
-sleep 5
 
-# Wait for FQDN prompt
 expect "*Set the FQDN of this panel:*"
 send "bad-cat-91.telebit.io\r"
-sleep 5
 
-# Wait for UFW prompt
 expect "*Do you want to automatically configure UFW (firewall)? (y/N):*"
 send "n\r"
-sleep 5
 
-# Wait for Let's Encrypt prompt
 expect "*Do you want to automatically configure HTTPS using Let's Encrypt? (y/N):*"
 send "y\r"
-sleep 5
 
-# Wait for Let's Encrypt agreement prompt
 expect "*I agree that this HTTPS request is performed (y/N):*"
 send "y\r"
-sleep 5
 
-# Wait for Cloudflare warning prompt
 expect "*Proceed anyways (your install will be broken if you do not know what you are doing)? (y/N):*"
 send "y\r"
-sleep 5
 
-# Wait for configuration confirmation
 expect "*Initial configuration completed. Continue with installation? (y/N):*"
 send "y\r"
-sleep 5
 
-# Wait for telemetry prompt and automatically answer Y after 3 minutes
+# Let user see telemetry prompt
 expect "*Enable sending anonymous telemetry data? (yes/no) [yes]:*"
-sleep 180  # Wait 3 minutes (180 seconds)
-send "y\r"
-sleep 5
+send "\r"
 
-# Wait for Let's Encrypt Terms of Service
+# Certificate process will be visible here
 expect "*Do you agree?*"
-sleep 180  # Wait 3 minutes for certificate process
 send "y\r"
-sleep 5
 
-# After certificate acceptance, send Ctrl+C to return to menu
-expect "*WARNING: The process of obtaining a Let's Encrypt certificate failed!*" {
-    send "\003"
-    exp_continue
-}
-expect "*Still assume SSL? (y/N):*" {
-    send "\003"
-    exp_continue
-}
+# Wait for certificate process to complete
 expect eof
 EOF
     
     chmod +x /tmp/install_panel.exp
-    echo -e "${YELLOW}Starting automatic installation...${NC}"
-    echo -e "${BLUE}Telemetry will be auto-accepted after 3 minutes...${NC}"
-    echo -e "${BLUE}Certificate will be auto-accepted after 3 minutes...${NC}"
-    echo -e "${BLUE}After installation, press Ctrl+C to return to menu${NC}"
+    echo -e "${YELLOW}Starting installation with visible output...${NC}"
+    echo -e "${GREEN}You will see certificate generation process now!${NC}"
+    echo ""
     
-    expect /tmp/install_panel.exp
+    # Run expect with visible output
+    expect -f /tmp/install_panel.exp
     rm -f /tmp/install_panel.exp
     
-    # Fix nginx and ptero worker
+    # Post-installation
     fix_nginx_ptero
     
-    # Show login details after installation
+    # Show results
+    show_installation_results
+}
+
+# Function to show installation results
+show_installation_results() {
     echo -e "\n${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${RED}              📋 INSTALLATION COMPLETED 📋${NC}"
+    echo -e "${RED}              📋 INSTALLATION RESULTS 📋${NC}"
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "${GREEN}✅ Panel successfully installed!${NC}"
-    echo ""
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}                 🔐 LOGIN DETAILS 🔐${NC}"
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
-    echo -e "${BLUE}🌐 Panel URL:${NC} ${WHITE}https://bad-cat-91.telebit.io${NC}"
-    echo ""
-    echo -e "${BLUE}📧 Email:${NC} ${WHITE}admin@gmail.com${NC}"
-    echo -e "${BLUE}👤 Username:${NC} ${WHITE}admin${NC}"
-    echo -e "${BLUE}🔑 Password:${NC} ${WHITE}admin123${NC}"
-    echo -e "${BLUE}👤 Full Name:${NC} ${WHITE}admin user${NC}"
-    echo ""
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}⚠️  Important: Save these credentials!${NC}"
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
     
-    # Final service status check
-    echo -e "${YELLOW}Final Service Status:${NC}"
-    echo -e "Nginx: $(systemctl is-active nginx)"
-    echo -e "PHP-FPM: $(systemctl is-active php8.1-fpm || systemctl is-active php8.0-fpm || systemctl is-active php7.4-fpm || echo 'Not found')"
-    echo -e "Ptero Queue: $(systemctl is-active pteroq)"
-    echo -e "Redis: $(systemctl is-active redis-server)"
-    echo ""
+    # Check SSL certificate
+    echo -e "${YELLOW}SSL Certificate Status:${NC}"
+    if [ -f "/etc/letsencrypt/live/bad-cat-91.telebit.io/fullchain.pem" ]; then
+        echo -e "${GREEN}✓ SSL certificate successfully obtained!${NC}"
+        echo -e "${BLUE}Certificate valid until:${NC}"
+        openssl x509 -in /etc/letsencrypt/live/bad-cat-91.telebit.io/fullchain.pem -noout -enddate 2>/dev/null || echo "Could not read certificate"
+    elif [ -f "/etc/letsencrypt/live/$(hostname)/fullchain.pem" ]; then
+        echo -e "${GREEN}✓ SSL certificate found for $(hostname)${NC}"
+    else
+        echo -e "${RED}⚠ SSL certificate not found${NC}"
+        echo -e "${YELLOW}You may need to manually run:${NC}"
+        echo -e "certbot --nginx -d bad-cat-91.telebit.io --email admin@gmail.com --agree-tos --no-eff-email"
+    fi
     
+    echo ""
+    echo -e "${YELLOW}Service Status:${NC}"
+    echo -e "Nginx: $(systemctl is-active nginx 2>/dev/null || echo 'Not installed')"
+    echo -e "MariaDB: $(systemctl is-active mariadb 2>/dev/null || echo 'Not installed')"
+    echo -e "PHP-FPM: $(systemctl is-active php*-fpm 2>/dev/null | head -1 || echo 'Not installed')"
+    echo -e "Ptero Queue: $(systemctl is-active pteroq 2>/dev/null || echo 'Not installed')"
+    
+    echo ""
+    echo -e "${YELLOW}Panel Files:${NC}"
+    if [ -d "/var/www/pterodactyl" ]; then
+        echo -e "${GREEN}✓ Panel installed at /var/www/pterodactyl${NC}"
+        echo -e "${BLUE}Disk usage:${NC} $(du -sh /var/www/pterodactyl 2>/dev/null | cut -f1)"
+    else
+        echo -e "${RED}⚠ Panel files not found${NC}"
+    fi
+    
+    echo ""
     echo -e "${GREEN}Press Enter to return to main menu...${NC}"
     read -p ""
 }
@@ -396,32 +359,32 @@ install_wings_auto() {
 set timeout -1
 
 spawn bash <(curl -s https://pterodactyl-installer.se)
-sleep 5
+sleep 2
 
 # Wait for initial prompt
 expect "*Input 0-6:*"
 send "1\r"
-sleep 5
+sleep 2
 
 # Wait for UFW prompt - answer n
 expect "*Do you want to automatically configure UFW (firewall)? (y/N):*"
 send "n\r"
-sleep 5
+sleep 2
 
 # Wait for database user prompt - answer n
 expect "*Do you want to automatically configure a user for database hosts? (y/N):*"
 send "n\r"
-sleep 5
+sleep 2
 
 # Wait for Let's Encrypt prompt - answer n
 expect "*Do you want to automatically configure HTTPS using Let's Encrypt? (y/N):*"
 send "n\r"
-sleep 5
+sleep 2
 
 # Wait for installation confirmation - answer y
 expect "*Proceed with installation? (y/N):*"
 send "y\r"
-sleep 5
+sleep 2
 
 expect eof
 EOF
@@ -434,93 +397,69 @@ EOF
     echo -e "${GREEN}✓ Wings base installation completed!${NC}"
     
     # Automatically run SSL certificate setup
-    echo -e "${YELLOW}Setting up SSL certificates automatically...${NC}"
+    echo -e "${YELLOW}Setting up SSL certificates...${NC}"
     mkdir -p /etc/certs && cd /etc/certs && openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=NA/ST=NA/L=NA/O=NA/CN=Generic SSL Certificate" -keyout privkey.pem -out fullchain.pem && cd && clear
     
     echo -e "${GREEN}✓ SSL certificates created at /etc/certs/${NC}"
     
-    # Display certificate details
-    echo -e "${YELLOW}Certificate Details:${NC}"
-    echo -e "${BLUE}Location:${NC} /etc/certs/"
-    echo -e "${BLUE}Private Key:${NC} privkey.pem"
-    echo -e "${BLUE}Certificate:${NC} fullchain.pem"
     echo ""
-    
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${YELLOW}                 📋 WINGS INSTALLATION COMPLETE 📋${NC}"
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo -e "${GREEN}✅ Wings successfully installed!${NC}"
     echo ""
-    echo -e "${YELLOW}Next steps to configure Wings:${NC}"
-    echo ""
-    echo -e "${BLUE}1. Edit config file:${NC}"
-    echo -e "   nano /etc/pterodactyl/config.yml"
-    echo ""
-    echo -e "${BLUE}2. Update SSL certificate paths to:${NC}"
-    echo -e "   cert: /etc/certs/fullchain.pem"
-    echo -e "   key: /etc/certs/privkey.pem"
-    echo ""
-    echo -e "${BLUE}3. Start Wings:${NC}"
-    echo -e "   Test mode: ${GREEN}wings --debug${NC}"
-    echo -e "   As service: ${GREEN}systemctl start wings${NC}"
-    echo -e "   Enable on boot: ${GREEN}systemctl enable wings${NC}"
-    echo ""
-    echo -e "${BLUE}4. Check status:${NC}"
-    echo -e "   systemctl status wings"
+    echo -e "${BLUE}Certificate location:${NC} /etc/certs/"
+    echo -e "${BLUE}Next steps:${NC}"
+    echo "1. nano /etc/pterodactyl/config.yml"
+    echo "2. Update: cert: /etc/certs/fullchain.pem"
+    echo "3. Update: key: /etc/certs/privkey.pem"
+    echo "4. systemctl start wings"
     echo ""
     
     echo -e "${GREEN}Press Enter to return to main menu...${NC}"
     read -p ""
 }
 
-# Function to install Cloudflared
-install_cloudflared() {
-    echo -e "${YELLOW}Installing Cloudflared...${NC}"
-    sleep 5
+# Function to fix nginx and ptero worker
+fix_nginx_ptero() {
+    echo -e "${YELLOW}Setting up services...${NC}"
     
-    # Add cloudflare gpg key
-    sudo mkdir -p --mode=0755 /usr/share/keyrings
-    curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+    # Start and enable services
+    systemctl start nginx 2>/dev/null && systemctl enable nginx 2>/dev/null
+    systemctl start mariadb 2>/dev/null && systemctl enable mariadb 2>/dev/null
     
-    # Add repo to apt
-    echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
-    
-    # Install cloudflared
-    sudo apt-get update && sudo apt-get install cloudflared -y
-    
-    echo -e "${GREEN}✓ Cloudflared installed successfully${NC}"
-    echo ""
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}                 📋 CLOUDFLARE SETUP 📋${NC}"
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
-    echo -e "${BLUE}1. Go to:${NC} https://one.dash.cloudflare.com/"
-    echo -e "${BLUE}2. Network → Tunnel → Create Tunnel${NC}"
-    echo -e "${BLUE}3. Name:${NC} PTERODACTYL"
-    echo -e "${BLUE}4. Add application routes:${NC}"
-    echo -e "   - Panel: panel.yourdomain.com → localhost:80"
-    echo -e "   - Node: node.yourdomain.com → localhost:8443"
-    echo -e "${BLUE}5. Use token from Cloudflare dashboard${NC}"
-    echo ""
-    
-    echo -e "${GREEN}Press Enter to return to main menu...${NC}"
-    read -p ""
-}
+    # Setup pteroq if needed
+    if [ ! -f /etc/systemd/system/pteroq.service ] && [ -d /var/www/pterodactyl ]; then
+        echo -e "${YELLOW}Creating pteroq service...${NC}"
+        cat > /etc/systemd/system/pteroq.service << 'EOF'
+[Unit]
+Description=Pterodactyl Queue Worker
+After=redis-server.service
 
-# Function to show system information
-show_system_info() {
-    echo -e "${YELLOW}System Information:${NC}"
-    echo -e "${BLUE}OS:${NC} $(lsb_release -d | cut -f2)"
-    echo -e "${BLUE}Kernel:${NC} $(uname -r)"
-    echo -e "${BLUE}Uptime:${NC} $(uptime -p | sed 's/up //')"
-    echo -e "${BLUE}RAM:${NC} $(free -h | awk '/^Mem:/ {print $3 "/" $2}')"
-    echo -e "${BLUE}Disk:${NC} $(df -h / | awk 'NR==2 {print $4 " free / " $2 " total"}')"
-    echo -e "${BLUE}IP:${NC} $(curl -s ifconfig.me)"
-    echo ""
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+ExecStart=/usr/bin/php /var/www/pterodactyl/artisan queue:work --queue=high,standard,low --sleep=3 --tries=3
+StartLimitInterval=180
+StartLimitBurst=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        systemctl daemon-reload
+        systemctl start pteroq
+        systemctl enable pteroq
+    fi
     
-    echo -e "${GREEN}Press Enter to return to main menu...${NC}"
-    read -p ""
+    # Fix permissions
+    if [ -d "/var/www/pterodactyl" ]; then
+        chown -R www-data:www-data /var/www/pterodactyl/storage
+        chown -R www-data:www-data /var/www/pterodactyl/bootstrap/cache
+    fi
+    
+    echo -e "${GREEN}✓ Services configured${NC}"
 }
 
 # Main menu
@@ -538,10 +477,10 @@ show_menu() {
     echo -e "${RED}|_|  |_/_/   \_\___|_| \_|  |_|  |_|_____|_| \_|\___/${NC}"
     echo ""
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${RED}  1) Install Pterodactyl Panel (Automatic)${NC}"
-    echo -e "${RED}  2) Install Wings (Automatic with SSL)${NC}"
-    echo -e "${RED}  3) Complete Setup (Panel + Wings)${NC}"
-    echo -e "${RED}  4) Install Cloudflared${NC}"
+    echo -e "${RED}  1) Install Panel (Manual - See Certificate Process)${NC}"
+    echo -e "${RED}  2) Install Panel (Automatic)${NC}"
+    echo -e "${RED}  3) Install Wings (Automatic with SSL)${NC}"
+    echo -e "${RED}  4) Complete Setup (Panel + Wings)${NC}"
     echo -e "${RED}  5) System Information${NC}"
     echo -e "${RED}  0) Exit${NC}"
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -556,25 +495,32 @@ while true; do
     case $choice in
         1)
             check_requirements
-            install_panel_auto
+            install_panel_manual
             ;;
         2)
             check_requirements
-            install_wings_auto
+            install_panel_auto
             ;;
         3)
-            echo -e "\n${YELLOW}Starting Complete Pterodactyl Setup...${NC}"
             check_requirements
-            install_panel_auto
-            echo -e "${YELLOW}Panel installed. Now installing Wings...${NC}"
             install_wings_auto
-            echo -e "${GREEN}✓ Complete Pterodactyl setup finished!${NC}"
             ;;
         4)
-            install_cloudflared
+            echo -e "\n${YELLOW}Starting Complete Setup...${NC}"
+            check_requirements
+            install_panel_manual
+            echo -e "${YELLOW}Now installing Wings...${NC}"
+            install_wings_auto
             ;;
         5)
-            show_system_info
+            echo -e "${YELLOW}System Information:${NC}"
+            echo -e "${BLUE}OS:${NC} $(lsb_release -d | cut -f2 2>/dev/null || echo 'Unknown')"
+            echo -e "${BLUE}Kernel:${NC} $(uname -r)"
+            echo -e "${BLUE}RAM:${NC} $(free -h | awk '/^Mem:/ {print $2}')"
+            echo -e "${BLUE}Disk:${NC} $(df -h / | awk 'NR==2 {print $4 " free"}')"
+            echo -e "${BLUE}IP:${NC} $(curl -s ifconfig.me 2>/dev/null || echo 'Unknown')"
+            echo ""
+            read -p "Press Enter to continue..."
             ;;
         0)
             echo -e "\n${RED}Exiting...${NC}"
@@ -582,6 +528,7 @@ while true; do
             ;;
         *)
             echo -e "\n${RED}Invalid option!${NC}"
+            sleep 2
             ;;
     esac
 done
