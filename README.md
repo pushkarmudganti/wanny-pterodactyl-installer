@@ -21,4 +21,4 @@ A professional, feature-rich installer for Pterodactyl Panel and Wings with emoj
 
 ```bash
 # One-liner installation
-bash <(curl -s https://raw.githubusercontent.com/YourUsername/wanny-pterodactyl-installer/main/installer.sh)
+bash <(curl -s https://raw.githubusercontent.com/ptero_wannyscript/wanny-pterodactyl-installer/main/installer.sh)
