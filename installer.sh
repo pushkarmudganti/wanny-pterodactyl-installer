@@ -209,7 +209,7 @@ EOF
     fi
 }
 
-# Function to install Wings automatically with n n n y
+# Function to install Wings automatically with n n n y and SSL setup
 install_wings_auto() {
     echo -e "${YELLOW}Starting Automatic Wings Installation...${NC}"
     echo ""
@@ -255,33 +255,43 @@ EOF
     expect /tmp/install_wings.exp
     rm -f /tmp/install_wings.exp
     
-    echo -e "${GREEN}✓ Wings installation completed!${NC}"
+    echo -e "${GREEN}✓ Wings base installation completed!${NC}"
     
-    # Setup SSL certificates
-    echo -e "${YELLOW}Setting up SSL certificates...${NC}"
-    mkdir -p /etc/certs
-    cd /etc/certs
-    openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 \
-        -subj "/C=NA/ST=NA/L=NA/O=NA/CN=Generic SSL Certificate" \
-        -keyout privkey.pem -out fullchain.pem
-    cd
+    # Automatically run SSL certificate setup
+    echo -e "${YELLOW}Setting up SSL certificates automatically...${NC}"
+    mkdir -p /etc/certs && cd /etc/certs && openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=NA/ST=NA/L=NA/O=NA/CN=Generic SSL Certificate" -keyout privkey.pem -out fullchain.pem && cd && clear
     
     echo -e "${GREEN}✓ SSL certificates created at /etc/certs/${NC}"
+    
+    # Display certificate details
+    echo -e "${YELLOW}Certificate Details:${NC}"
+    echo -e "${BLUE}Location:${NC} /etc/certs/"
+    echo -e "${BLUE}Private Key:${NC} privkey.pem"
+    echo -e "${BLUE}Certificate:${NC} fullchain.pem"
     echo ""
+    
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}                 📋 NEXT STEPS 📋${NC}"
+    echo -e "${YELLOW}                 📋 WINGS INSTALLATION COMPLETE 📋${NC}"
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "${BLUE}1. Configure config.yml:${NC}"
+    echo -e "${GREEN}✅ Wings successfully installed!${NC}"
+    echo ""
+    echo -e "${YELLOW}Next steps to configure Wings:${NC}"
+    echo ""
+    echo -e "${BLUE}1. Edit config file:${NC}"
     echo -e "   nano /etc/pterodactyl/config.yml"
     echo ""
-    echo -e "${BLUE}2. Update certificate paths:${NC}"
+    echo -e "${BLUE}2. Update SSL certificate paths to:${NC}"
     echo -e "   cert: /etc/certs/fullchain.pem"
     echo -e "   key: /etc/certs/privkey.pem"
     echo ""
     echo -e "${BLUE}3. Start Wings:${NC}"
-    echo -e "   Test: ${GREEN}wings --debug${NC}"
-    echo -e "   Service: ${GREEN}systemctl start wings${NC}"
+    echo -e "   Test mode: ${GREEN}wings --debug${NC}"
+    echo -e "   As service: ${GREEN}systemctl start wings${NC}"
+    echo -e "   Enable on boot: ${GREEN}systemctl enable wings${NC}"
+    echo ""
+    echo -e "${BLUE}4. Check status:${NC}"
+    echo -e "   systemctl status wings"
     echo ""
 }
 
@@ -343,7 +353,7 @@ show_menu() {
     echo ""
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${RED}  1) Install Pterodactyl Panel (Automatic)${NC}"
-    echo -e "${RED}  2) Install Wings (Daemon) - n n n y${NC}"
+    echo -e "${RED}  2) Install Wings (Automatic with SSL)${NC}"
     echo -e "${RED}  3) Complete Setup (Panel + Wings)${NC}"
     echo -e "${RED}  4) Install Cloudflared${NC}"
     echo -e "${RED}  5) System Information${NC}"
