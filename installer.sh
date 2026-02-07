@@ -100,14 +100,14 @@ if [ "$panel" == true ]; then
   echo -e "\e[1;35m──────────────────────────────────────────\e[0m"
   echo -e "\e[1;35m         INSTALLING PTERODACTYL PANEL     \e[0m"
   echo -e "\e[1;35m──────────────────────────────────────────\e[0m"
-  bash <(curl -s https://raw.githubusercontent.com/pushkarmudganti/wanny_pterodactyl-installer/master/install-panel.sh)
+  bash <(curl -s https://raw.githubusercontent.com/pushkarmudganti/wanny_pterodactyl-installer/main/install-panel.sh)
 fi
 
 if [ "$wings" == true ]; then
   echo -e "\n\e[1;35m──────────────────────────────────────────\e[0m"
   echo -e "\e[1;35m         INSTALLING WINGS DAEMON          \e[0m"
   echo -e "\e[1;35m──────────────────────────────────────────\e[0m"
-  bash <(curl -s https://raw.githubusercontent.com/pushkarmudganti/wanny_pterodactyl-installer/master/install-wings.sh)
+  bash <(curl -s https://raw.githubusercontent.com/pushkarmudganti/wanny_pterodactyl-installer/main/install-wings.sh)
 fi
 
 if [ "$blueprint" == true ]; then
